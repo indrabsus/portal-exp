@@ -21,15 +21,16 @@ export function RequireRole({
     const currentUser = getUser()
 
     if (!currentUser) {
-      router.replace("/")
+      router.replace("/login")
       return
     }
 
     if (getRole(currentUser) !== role) {
-      router.replace(getRoleHome(currentUser) || "/")
+      router.replace(getRoleHome(currentUser) || "/login")
       return
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- baca localStorage sekali saat mount, tidak bisa dihitung lewat initializer karena SSR
     setUser(currentUser)
     setChecked(true)
   }, [router, role])

@@ -47,6 +47,17 @@ export const logout = () => {
   localStorage.removeItem("user")
 }
 
+// Dipanggil setelah upload foto profil berhasil - update cache localStorage
+// supaya avatar langsung berubah tanpa perlu logout/login ulang.
+export const updateUserGambar = (gambar: string): UserLogin | null => {
+  const user = getUser()
+  if (!user) return null
+
+  const updated: UserLogin = { ...user, gambar }
+  localStorage.setItem("user", JSON.stringify(updated))
+  return updated
+}
+
 export const getRole = (user: UserLogin | null): string => {
   return String(user?.role || user?.nama_role || "")
     .toLowerCase()

@@ -1,5 +1,13 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// Backend mengembalikan path relatif (mis. "/uploads/profil/xxx.jpg") -
+// tempel base URL backend di depannya biar bisa dipakai langsung sebagai src.
+export function getAssetUrl(path: string | null | undefined) {
+  if (!path) return null
+  if (/^https?:\/\//.test(path)) return path
+  return `${API_URL}${path}`
+}
+
 // Pesan yang dikembalikan backend (middleware auth) saat token tidak ada /
 // tidak valid / kedaluwarsa. Kalau ini muncul padahal kita memang sedang
 // mengirim token, berarti sesi login sudah tidak berlaku lagi.
@@ -11,8 +19,8 @@ function paksaLogout() {
   localStorage.removeItem("token")
   localStorage.removeItem("user")
 
-  if (window.location.pathname !== "/") {
-    window.location.href = "/"
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login"
   }
 }
 
@@ -40,6 +48,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 
   const contentType = res.headers.get("content-type") || ""
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- bentuk JSON beda-beda per endpoint
   let data: any = null
 
   if (contentType.includes("application/json")) {

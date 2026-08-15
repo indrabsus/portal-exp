@@ -4,7 +4,6 @@ import {
   Building,
   CalendarRange,
   GraduationCap,
-  KeyRound,
   LayoutDashboard,
   BookOpen,
   School,
@@ -26,11 +25,6 @@ const menus: PortalMenuItem[] = [
     title: "Informasi Sekolah",
     href: "/admin/informasi-sekolah",
     icon: Building,
-  },
-  {
-    title: "Ubah Password",
-    href: "/admin/reset-password",
-    icon: KeyRound,
   },
 ]
 

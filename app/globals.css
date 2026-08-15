@@ -2,6 +2,18 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Browser default-nya buang background-color saat print (cuma teks & border
+   yang ikut) - titik jawaban PG Kategori butuh bg-color-nya tetap muncul.
+   Discope ke .print-exact saja (bukan elemen print lain) supaya background
+   halaman (body) tetap dibuang browser seperti biasa saat print. */
+@media print {
+  .print-exact,
+  .print-exact * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
