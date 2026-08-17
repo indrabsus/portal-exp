@@ -1,7 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 import {
+  FileDown,
   Loader2,
   Pencil,
   Plus,
@@ -50,7 +53,10 @@ type Siswa = {
       nama_kelas: string
     } | null
   } | null
+  riwayat_kelas?: { tingkat: string; nama_kelas: string }[]
 }
+
+type KelasOption = { tingkat: string; nama_kelas: string }
 
 type EditForm = {
   nama_lengkap: string
@@ -96,13 +102,18 @@ export default function SiswaPage() {
 
   const [searchInput, setSearchInput] = useState("")
   const [search, setSearch] = useState("")
-  const [status, setStatus] = useState("")
+  const [status, setStatus] = useState("aktif")
   const [sortKey, setSortKey] = useState("nama")
   const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
   const [totalPages, setTotalPages] = useState(1)
   const [totalRows, setTotalRows] = useState(0)
+
+  const [tahunAktif, setTahunAktif] = useState("")
+  const [kelasOptions, setKelasOptions] = useState<KelasOption[]>([])
+  const [kelasValue, setKelasValue] = useState("")
+  const [exporting, setExporting] = useState(false)
 
   const [addOpen, setAddOpen] = useState(false)
   const [namaBaru, setNamaBaru] = useState("")
@@ -130,18 +141,31 @@ export default function SiswaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput])
 
+  // Dipakai bersama oleh muatData (list berhalaman) dan cetak PDF (semua data
+  // yang cocok filter) supaya kriteria filternya selalu identik.
+  const buildFilterParams = () => {
+    const params = new URLSearchParams()
+    params.set("sort_by", sortKey)
+    params.set("sort_dir", sortDir)
+    if (search.trim()) params.set("search", search.trim())
+    if (status) params.set("status", status)
+    if (tahunAktif) params.set("tahun_ajaran", tahunAktif)
+    if (kelasValue) {
+      const separatorIndex = kelasValue.indexOf("|")
+      params.set("tingkat", kelasValue.slice(0, separatorIndex))
+      params.set("kelas", kelasValue.slice(separatorIndex + 1))
+    }
+    return params
+  }
+
   const muatData = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const params = new URLSearchParams()
+      const params = buildFilterParams()
       params.set("page", String(page))
       params.set("limit", String(pageSize))
-      params.set("sort_by", sortKey)
-      params.set("sort_dir", sortDir)
-      if (search.trim()) params.set("search", search.trim())
-      if (status) params.set("status", status)
 
       const res = await apiFetch(`/siswa/master?${params.toString()}`)
       setData(Array.isArray(res.data) ? res.data : [])
@@ -154,16 +178,38 @@ export default function SiswaPage() {
     }
   }
 
+  // Ambil tahun ajaran aktif + daftar kelasnya sekali di awal, dipakai untuk
+  // filter Kelas (backend cuma bisa filter/tampilkan kelas aktual kalau
+  // tahun_ajaran disertakan).
   useEffect(() => {
     let cancelled = false
 
-    const params = new URLSearchParams()
+    apiFetch("/riwayat-kelas/tahun-aktif")
+      .then(async (res) => {
+        const namaTahun = res.data?.tahun_ajaran || ""
+        if (cancelled) return
+        setTahunAktif(namaTahun)
+
+        if (namaTahun) {
+          const kelasRes = await apiFetch(`/riwayat-kelas/kelas-list?tahun_ajaran=${encodeURIComponent(namaTahun)}`)
+          if (!cancelled) setKelasOptions(kelasRes.data || [])
+        }
+      })
+      .catch(() => {
+        // Filter kelas cukup dilewati kalau ini gagal - daftar siswa tetap jalan.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const params = buildFilterParams()
     params.set("page", String(page))
     params.set("limit", String(pageSize))
-    params.set("sort_by", sortKey)
-    params.set("sort_dir", sortDir)
-    if (search.trim()) params.set("search", search.trim())
-    if (status) params.set("status", status)
 
     apiFetch(`/siswa/master?${params.toString()}`)
       .then((res) => {
@@ -184,7 +230,8 @@ export default function SiswaPage() {
     return () => {
       cancelled = true
     }
-  }, [page, pageSize, sortKey, sortDir, search, status])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, sortKey, sortDir, search, status, tahunAktif, kelasValue])
 
   const toggleSort = (key: string) => {
     setLoading(true)
@@ -312,6 +359,68 @@ export default function SiswaPage() {
     }
   }
 
+  const cetakPdf = async () => {
+    setExporting(true)
+    setError(null)
+
+    try {
+      const params = buildFilterParams()
+      params.set("limit", "1000")
+
+      // Backend membatasi limit maks 1000/halaman - loop tiap halaman sampai
+      // habis supaya semua data yang cocok filter ikut tercetak.
+      let semuaBaris: Siswa[] = []
+      let halaman = 1
+      let totalHalaman = 1
+
+      do {
+        params.set("page", String(halaman))
+        const res = await apiFetch(`/siswa/master?${params.toString()}`)
+        const rows: Siswa[] = Array.isArray(res.data) ? res.data : []
+        semuaBaris = semuaBaris.concat(rows)
+        totalHalaman = res.pagination?.total_pages || 1
+        halaman += 1
+      } while (halaman <= totalHalaman)
+
+      if (semuaBaris.length === 0) {
+        window.alert("Tidak ada data siswa untuk dicetak sesuai filter saat ini.")
+        return
+      }
+
+      const doc = new jsPDF()
+      const kelasLabel = kelasValue ? kelasValue.split("|").join(" ") : null
+      const statusLabel = STATUS_OPTIONS.find((s) => s.value === status)?.label
+
+      doc.setFontSize(14)
+      doc.text("Daftar Siswa", 14, 15)
+      doc.setFontSize(9)
+      doc.setTextColor(100)
+      doc.text(
+        [statusLabel && statusLabel !== "Semua Status" ? statusLabel : null, kelasLabel, tahunAktif]
+          .filter(Boolean)
+          .join(" · ") || "Semua data",
+        14,
+        21
+      )
+
+      autoTable(doc, {
+        startY: 26,
+        head: [["No", "Nama Lengkap", "Username"]],
+        body: semuaBaris.map((s, idx) => [String(idx + 1), s.nama_lengkap, s.username]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [37, 99, 235] },
+        columnStyles: { 0: { cellWidth: 12 } },
+      })
+
+      const timestamp = new Date().toISOString().slice(0, 10)
+      doc.save(`daftar-siswa-${timestamp}.pdf`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mencetak PDF.")
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -321,10 +430,16 @@ export default function SiswaPage() {
             Kelola data siswa ({totalRows.toLocaleString("id-ID")} total).
           </p>
         </div>
-        <Button onClick={bukaTambah}>
-          <Plus className="w-4 h-4" />
-          Tambah Siswa
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={cetakPdf} disabled={exporting}>
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+            Cetak PDF
+          </Button>
+          <Button onClick={bukaTambah}>
+            <Plus className="w-4 h-4" />
+            Tambah Siswa
+          </Button>
+        </div>
       </div>
 
       <Card className="dashboard-card overflow-hidden py-0">
@@ -346,6 +461,23 @@ export default function SiswaPage() {
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={selectClass + " w-auto"}
+              value={kelasValue}
+              onChange={(e) => {
+                setLoading(true)
+                setPage(1)
+                setKelasValue(e.target.value)
+              }}
+              disabled={kelasOptions.length === 0}
+            >
+              <option value="">Semua Kelas</option>
+              {kelasOptions.map((k) => (
+                <option key={`${k.tingkat}-${k.nama_kelas}`} value={`${k.tingkat}|${k.nama_kelas}`}>
+                  {k.tingkat} {k.nama_kelas}
                 </option>
               ))}
             </select>
@@ -378,7 +510,7 @@ export default function SiswaPage() {
                     <SortableTh label="NISN" sortKey="nisn" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortableTh
                       label="Kelas"
-                      sortKey="kelas_ppdb"
+                      sortKey="kelas"
                       activeKey={sortKey}
                       sortDir={sortDir}
                       onSort={toggleSort}
@@ -401,7 +533,7 @@ export default function SiswaPage() {
                   ) : (
                     data.map((item) => {
                       const isBusy = processingId === item.id_siswa
-                      const kelas = item.siswa_baru?.kelas_ppdb
+                      const kelas = item.riwayat_kelas?.[0] || item.siswa_baru?.kelas_ppdb
 
                       return (
                         <tr key={item.id_siswa} className="hover:bg-muted/40">
