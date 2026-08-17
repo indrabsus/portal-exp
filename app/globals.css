@@ -14,6 +14,151 @@
   }
 }
 
+/* Animasi halaman login: logo Sangkuriang meledak di tengah layar lalu
+   lenyap, mengungkap galeri foto di kiri dan kartu login yang terbang
+   masuk dari kanan. Cuma dijalankan di desktop (md+) - elemen ledakan
+   tidak dirender sama sekali di mobile (hidden md:block di JSX) dan
+   kartu login cukup pakai transisi fade+slide sederhana dari
+   tw-animate-css. */
+@keyframes login-logo-burst {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  16% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.18);
+  }
+  38% {
+    transform: scale(0.88);
+  }
+  44% {
+    transform: scale(1.7);
+  }
+  55%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes login-explosion-flash {
+  0%,
+  40% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  46% {
+    transform: scale(1.4);
+    opacity: 0.9;
+  }
+  60%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes login-explosion-ring {
+  0%,
+  42% {
+    transform: scale(0.15);
+    opacity: 0;
+  }
+  48% {
+    opacity: 0.8;
+  }
+  66%,
+  100% {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+@keyframes login-gallery-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(14px);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.05) translateY(-2px);
+  }
+  60% {
+    transform: scale(0.98) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes login-card-fly-in {
+  0%,
+  38% {
+    opacity: 0;
+    transform: translateX(64px) scale(0.88);
+  }
+  58% {
+    opacity: 1;
+    transform: translateX(-10px) scale(1.03);
+  }
+  75% {
+    transform: translateX(3px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (min-width: 768px) {
+  .login-logo-burst {
+    animation: login-logo-burst 2.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .login-explosion-flash {
+    animation: login-explosion-flash 2.6s ease-out forwards;
+  }
+  .login-explosion-ring {
+    animation: login-explosion-ring 2.6s ease-out forwards;
+  }
+  .login-explosion-ring-2 {
+    animation-delay: 0.12s;
+  }
+  .login-gallery-in {
+    opacity: 0;
+    animation: login-gallery-in 2.6s cubic-bezier(0.34, 1.56, 0.64, 1)
+      forwards;
+  }
+  .login-card-fly-in {
+    opacity: 0;
+    animation: login-card-fly-in 2.6s cubic-bezier(0.34, 1.56, 0.64, 1)
+      forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-logo-burst,
+  .login-explosion-flash,
+  .login-explosion-ring {
+    animation: none;
+    opacity: 0;
+  }
+  .login-gallery-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .login-card-fly-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

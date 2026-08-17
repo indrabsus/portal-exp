@@ -3,6 +3,7 @@
 import {
   BookMarked,
   BookOpen,
+  CalendarRange,
   ClipboardList,
   FileText,
   LayoutDashboard,
@@ -15,6 +16,7 @@ import { PortalShell, PortalMenuItem } from "@/components/portal-shell"
 
 const menus: PortalMenuItem[] = [
   { title: "Dashboard", href: "/guru/dashboard", icon: LayoutDashboard },
+  { title: "Absen", href: "/guru/absen", icon: CalendarRange },
   { title: "Pembagian Mengajar", href: "/guru/mengajar", icon: School },
   { title: "Absen Siswa", href: "/guru/absen-siswa", icon: ClipboardList },
   { title: "Rekap Absen Siswa", href: "/guru/rekap-absen-siswa", icon: ListChecks },

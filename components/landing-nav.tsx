@@ -18,11 +18,11 @@ export function LandingNav({ namaSekolah }: { namaSekolah: string }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-black/40 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2.5">
           <Image src="/logo.png" alt="Logo" width={36} height={36} className="h-9 w-auto object-contain" />
-          <span className="font-bold tracking-tight">{namaSekolah}</span>
+          <span className="font-bold tracking-tight text-white">{namaSekolah}</span>
         </div>
 
         <nav className="hidden items-center gap-6 lg:flex">
@@ -30,7 +30,7 @@ export function LandingNav({ namaSekolah }: { namaSekolah: string }) {
             <a
               key={l.href}
               href={l.href}
-              className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground"
+              className="text-sm font-medium text-white/70 transition-colors hover:text-white"
             >
               {l.label}
             </a>
@@ -48,7 +48,7 @@ export function LandingNav({ namaSekolah }: { namaSekolah: string }) {
 
         <button
           type="button"
-          className="flex size-9 items-center justify-center rounded-lg border border-border lg:hidden"
+          className="flex size-9 items-center justify-center rounded-lg border border-white/15 text-white lg:hidden"
           onClick={() => setOpen((v) => !v)}
           aria-label="Menu"
         >
@@ -57,14 +57,14 @@ export function LandingNav({ namaSekolah }: { namaSekolah: string }) {
       </div>
 
       {open && (
-        <div className="border-t border-border bg-background px-4 py-3 lg:hidden">
+        <div className="border-t border-white/10 bg-black/60 px-4 py-3 backdrop-blur-md lg:hidden">
           <nav className="flex flex-col gap-2">
             {LINKS.map((l) => (
               <a
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className="rounded-md px-2 py-2 text-sm font-medium text-foreground/70 hover:bg-accent hover:text-foreground"
+                className="rounded-md px-2 py-2 text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white"
               >
                 {l.label}
               </a>
