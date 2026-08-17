@@ -8,6 +8,7 @@ import {
   FileText,
   LayoutDashboard,
   ListChecks,
+  NotebookPen,
   School,
 } from "lucide-react"
 
@@ -20,6 +21,7 @@ const menus: PortalMenuItem[] = [
   { title: "Pembagian Mengajar", href: "/guru/mengajar", icon: School },
   { title: "Absen Siswa", href: "/guru/absen-siswa", icon: ClipboardList },
   { title: "Rekap Absen Siswa", href: "/guru/rekap-absen-siswa", icon: ListChecks },
+  { title: "Nilai Manual", href: "/guru/nilai-manual", icon: NotebookPen },
   { title: "Materi", href: "/guru/materi", icon: BookOpen },
   { title: "Bank Soal", href: "/guru/bank-soal", icon: BookMarked },
   { title: "Tugas", href: "/guru/tugas", icon: FileText },
