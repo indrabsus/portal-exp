@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react"
 import {
+  CheckCircle2,
   FileText,
   ListChecks,
   Loader2,
   Pencil,
   Plus,
+  Save,
   Trash2,
+  Users,
+  XCircle,
 } from "lucide-react"
 
 import { apiFetch } from "@/lib/api"
@@ -51,6 +55,31 @@ type SoalTugas = {
   soal?: { pertanyaan: string; tipe_soal: string }
 }
 
+type Pengumpulan = {
+  id_pengumpulan: string
+  status: "dikerjakan" | "selesai" | "dinilai"
+  nilai: number | null
+  mulai_at: string
+  selesai_at: string | null
+  siswa?: { nama_lengkap: string; nisn: string }
+}
+
+type OpsiSoal = { id_opsi: string; label: string; isi_opsi: string; kategori?: string | null; is_benar?: boolean }
+type SoalDetail = {
+  tipe_soal: "pg_tunggal" | "pg_mcma" | "pg_kategori" | "essay"
+  daftar_kategori: string | null
+  pertanyaan: string
+  opsi: OpsiSoal[]
+}
+type TugasSoalDetail = { id_tugas_soal: string; nomor: number; bobot: number; soal: SoalDetail & { id_soal: string } }
+type JawabanDetail = { id_soal: string; id_opsi: string | null; jawaban_text: string | null; is_benar: boolean | null; nilai: number | null }
+
+const STATUS_PENGUMPULAN_LABEL: Record<string, string> = {
+  dikerjakan: "Sedang Dikerjakan",
+  selesai: "Menunggu Penilaian",
+  dinilai: "Sudah Dinilai",
+}
+
 const textareaClass =
   "w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
 
@@ -81,6 +110,7 @@ export default function TugasPage() {
 
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [kelolaTugas, setKelolaTugas] = useState<TugasRow | null>(null)
+  const [pengumpulanTugas, setPengumpulanTugas] = useState<TugasRow | null>(null)
 
   const muatData = async () => {
     setLoading(true)
@@ -274,6 +304,9 @@ export default function TugasPage() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon-sm" onClick={() => setPengumpulanTugas(item)} title="Lihat Pengumpulan">
+                              <Users className="w-3.5 h-3.5" />
+                            </Button>
                             <Button variant="ghost" size="icon-sm" onClick={() => bukaEdit(item)}>
                               <Pencil className="w-3.5 h-3.5" />
                             </Button>
@@ -364,6 +397,10 @@ export default function TugasPage() {
           onClose={() => setKelolaTugas(null)}
           onChanged={muatData}
         />
+      )}
+
+      {pengumpulanTugas && (
+        <PengumpulanModal tugas={pengumpulanTugas} onClose={() => setPengumpulanTugas(null)} />
       )}
     </div>
   )
@@ -536,5 +573,263 @@ function KelolaSoalModal({
         )}
       </div>
     </Modal>
+  )
+}
+
+function PengumpulanModal({ tugas, onClose }: { tugas: TugasRow; onClose: () => void }) {
+  const [list, setList] = useState<Pengumpulan[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [detail, setDetail] = useState<{ pengumpulan: Pengumpulan; soal: TugasSoalDetail[]; jawaban: JawabanDetail[] } | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [nilaiEssay, setNilaiEssay] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+
+  const muatList = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await apiFetch(`/tugas/${tugas.id_tugas}/pengumpulan`)
+      setList(res.data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memuat data.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    apiFetch(`/tugas/${tugas.id_tugas}/pengumpulan`)
+      .then((res) => {
+        if (!cancelled) setList(res.data || [])
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Gagal memuat data.")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tugas.id_tugas])
+
+  const bukaDetail = async (p: Pengumpulan) => {
+    setDetailLoading(true)
+    setError(null)
+
+    try {
+      const res = await apiFetch(`/tugas/${tugas.id_tugas}/pengumpulan/${p.id_pengumpulan}`)
+      const soal: TugasSoalDetail[] = res.data.soal || []
+      const jawaban: JawabanDetail[] = res.data.jawaban || []
+      setDetail({ pengumpulan: res.data.pengumpulan, soal, jawaban })
+
+      const initEssay: Record<string, string> = {}
+      soal.forEach((ts) => {
+        if (ts.soal.tipe_soal === "essay") {
+          const jwb = jawaban.find((j) => j.id_soal === ts.soal.id_soal)
+          initEssay[ts.soal.id_soal] = jwb?.nilai !== null && jwb?.nilai !== undefined ? String(jwb.nilai) : ""
+        }
+      })
+      setNilaiEssay(initEssay)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memuat detail pengumpulan.")
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const simpanNilai = async () => {
+    if (!detail) return
+
+    setSaving(true)
+    setError(null)
+
+    const nilai_essay = Object.entries(nilaiEssay).map(([id_soal, nilai]) => ({ id_soal, nilai: Number(nilai) }))
+
+    try {
+      await apiFetch(`/tugas/${tugas.id_tugas}/pengumpulan/${detail.pengumpulan.id_pengumpulan}/nilai`, {
+        method: "PUT",
+        body: JSON.stringify({ nilai_essay }),
+      })
+      setDetail(null)
+      await muatList()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menyimpan nilai.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const adaEssay = detail?.soal.some((ts) => ts.soal.tipe_soal === "essay") || false
+
+  return (
+    <Modal
+      title={detail ? `Jawaban - ${detail.pengumpulan.siswa?.nama_lengkap || "-"}` : `Pengumpulan - ${tugas.judul}`}
+      onClose={detail ? () => setDetail(null) : onClose}
+      maxWidthClassName="max-w-2xl"
+    >
+      {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
+
+      {!detail ? (
+        loading ? (
+          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Memuat data...
+          </div>
+        ) : !list || list.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Belum ada siswa yang mengerjakan tugas ini.</p>
+        ) : (
+          <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+            {list.map((p) => (
+              <button
+                key={p.id_pengumpulan}
+                onClick={() => bukaDetail(p)}
+                disabled={detailLoading}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-left text-sm hover:bg-muted/40"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{p.siswa?.nama_lengkap || "-"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.siswa?.nisn || "-"} &middot;{" "}
+                    {p.selesai_at
+                      ? new Date(p.selesai_at).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                      : "Belum dikumpulkan"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {p.nilai !== null && <span className="font-semibold">{p.nilai}</span>}
+                  <Badge variant={p.status === "dinilai" ? "default" : "secondary"}>{STATUS_PENGUMPULAN_LABEL[p.status]}</Badge>
+                </div>
+              </button>
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border border-border p-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Status</p>
+              <Badge variant={detail.pengumpulan.status === "dinilai" ? "default" : "secondary"} className="mt-1">
+                {STATUS_PENGUMPULAN_LABEL[detail.pengumpulan.status]}
+              </Badge>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Nilai</p>
+              <p className="text-xl font-bold">{detail.pengumpulan.nilai ?? "-"}</p>
+            </div>
+          </div>
+
+          <div className="max-h-[50vh] space-y-3 overflow-y-auto">
+            {detail.soal.map((ts, idx) => (
+              <div key={ts.id_tugas_soal} className="rounded-lg border border-border p-3">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Soal {idx + 1} <span className="font-normal">(bobot {ts.bobot})</span>
+                </p>
+                <p className="mb-2 text-sm font-medium">{ts.soal.pertanyaan}</p>
+                <JawabanSiswaView
+                  soal={ts.soal}
+                  jawabanList={detail.jawaban.filter((j) => j.id_soal === ts.soal.id_soal)}
+                  nilaiEssay={nilaiEssay[ts.soal.id_soal] ?? ""}
+                  onNilaiEssayChange={(v) => setNilaiEssay((prev) => ({ ...prev, [ts.soal.id_soal]: v }))}
+                />
+              </div>
+            ))}
+          </div>
+
+          {adaEssay && (
+            <Button onClick={simpanNilai} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Simpan Nilai
+            </Button>
+          )}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+function JawabanSiswaView({
+  soal,
+  jawabanList,
+  nilaiEssay,
+  onNilaiEssayChange,
+}: {
+  soal: SoalDetail
+  jawabanList: JawabanDetail[]
+  nilaiEssay: string
+  onNilaiEssayChange: (v: string) => void
+}) {
+  if (soal.tipe_soal === "pg_tunggal" || soal.tipe_soal === "pg_mcma") {
+    const idTerpilih = new Set(jawabanList.map((j) => j.id_opsi).filter(Boolean))
+    return (
+      <div className="space-y-1.5">
+        {soal.opsi.map((o) => {
+          const dipilih = idTerpilih.has(o.id_opsi)
+          return (
+            <div
+              key={o.id_opsi}
+              className={`flex items-center gap-2 rounded-md border p-2 text-xs ${
+                o.is_benar ? "border-emerald-500/40 bg-emerald-500/10" : dipilih ? "border-destructive/40 bg-destructive/10" : "border-border"
+              }`}
+            >
+              {o.is_benar ? (
+                <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" />
+              ) : dipilih ? (
+                <XCircle className="size-3.5 shrink-0 text-destructive" />
+              ) : (
+                <span className="size-3.5 shrink-0" />
+              )}
+              <span className="font-semibold">{o.label}.</span> {o.isi_opsi}
+              {dipilih && <span className="ml-auto text-muted-foreground">Jawaban siswa</span>}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  if (soal.tipe_soal === "pg_kategori") {
+    return (
+      <div className="space-y-1.5">
+        {soal.opsi.map((o) => {
+          const jwb = jawabanList.find((j) => j.id_opsi === o.id_opsi)
+          return (
+            <div
+              key={o.id_opsi}
+              className={`flex flex-wrap items-center gap-2 rounded-md border p-2 text-xs ${
+                jwb?.is_benar ? "border-emerald-500/40 bg-emerald-500/10" : "border-destructive/40 bg-destructive/10"
+              }`}
+            >
+              <span className="flex-1">{o.isi_opsi}</span>
+              <span className="text-muted-foreground">Jawaban: {jwb?.jawaban_text || "-"}</span>
+              <span className="font-medium">Benar: {o.kategori}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="rounded-md border border-border bg-muted/30 p-2 text-xs">{jawabanList[0]?.jawaban_text || "-"}</p>
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-medium text-muted-foreground">Nilai (0-100)</label>
+        <Input
+          type="number"
+          min={0}
+          max={100}
+          value={nilaiEssay}
+          onChange={(e) => onNilaiEssayChange(e.target.value)}
+          className="h-8 w-24"
+        />
+      </div>
+    </div>
   )
 }
