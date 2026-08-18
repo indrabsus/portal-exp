@@ -5,11 +5,13 @@ import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import {
   FileDown,
+  KeyRound,
   Loader2,
   Pencil,
   Plus,
   Search,
   Trash2,
+  UserCog,
   Users,
 } from "lucide-react"
 
@@ -125,6 +127,11 @@ export default function SiswaPage() {
   const [editingItem, setEditingItem] = useState<Siswa | null>(null)
   const [editForm, setEditForm] = useState<EditForm | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
+
+  const [usernameItem, setUsernameItem] = useState<Siswa | null>(null)
+  const [usernameValue, setUsernameValue] = useState("")
+  const [usernameError, setUsernameError] = useState<string | null>(null)
+  const [usernameSubmitting, setUsernameSubmitting] = useState(false)
 
   const [processingId, setProcessingId] = useState<string | null>(null)
 
@@ -359,6 +366,56 @@ export default function SiswaPage() {
     }
   }
 
+  const bukaUbahUsername = (item: Siswa) => {
+    setUsernameItem(item)
+    setUsernameValue(item.username)
+    setUsernameError(null)
+  }
+
+  const simpanUsername = async () => {
+    if (!usernameItem) return
+
+    setUsernameError(null)
+
+    if (!usernameValue.trim()) {
+      setUsernameError("Username wajib diisi.")
+      return
+    }
+
+    setUsernameSubmitting(true)
+
+    try {
+      await apiFetch("/ppdb/updateusernamesiswa", {
+        method: "PUT",
+        body: JSON.stringify({ id_siswa: usernameItem.id_siswa, username: usernameValue.trim() }),
+      })
+      setUsernameItem(null)
+      await muatData()
+    } catch (err) {
+      setUsernameError(err instanceof Error ? err.message : "Gagal mengubah username.")
+    } finally {
+      setUsernameSubmitting(false)
+    }
+  }
+
+  const resetPassword = async (item: Siswa) => {
+    if (!window.confirm(`Reset password ${item.nama_lengkap} ke default (123456)?`)) {
+      return
+    }
+
+    setProcessingId(item.id_siswa)
+    setError(null)
+
+    try {
+      await apiFetch(`/ppdb/resetpasswordsiswa/${item.id_siswa}`, { method: "PUT" })
+      window.alert(`Password ${item.nama_lengkap} berhasil direset ke 123456.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mereset password.")
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
   const cetakPdf = async () => {
     setExporting(true)
     setError(null)
@@ -552,7 +609,25 @@ export default function SiswaPage() {
                             {item.username}
                           </td>
                           <td className="px-4 py-2.5">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="icon-sm"
+                                disabled={isBusy}
+                                onClick={() => bukaUbahUsername(item)}
+                                title="Ubah Username"
+                              >
+                                <UserCog className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon-sm"
+                                disabled={isBusy}
+                                onClick={() => resetPassword(item)}
+                                title="Reset Password ke 123456"
+                              >
+                                {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -846,6 +921,33 @@ export default function SiswaPage() {
                 onClick={batalEdit}
                 disabled={processingId === editingItem.id_siswa}
               >
+                Batal
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {usernameItem && (
+        <Modal title={`Ubah Username - ${usernameItem.nama_lengkap}`} onClose={() => setUsernameItem(null)}>
+          <div className="space-y-3">
+            {usernameError && <p className="text-sm text-destructive">{usernameError}</p>}
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Username Baru</label>
+              <Input
+                value={usernameValue}
+                onChange={(e) => setUsernameValue(e.target.value)}
+                disabled={usernameSubmitting}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button onClick={simpanUsername} disabled={usernameSubmitting}>
+                {usernameSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Simpan
+              </Button>
+              <Button variant="outline" onClick={() => setUsernameItem(null)} disabled={usernameSubmitting}>
                 Batal
               </Button>
             </div>
