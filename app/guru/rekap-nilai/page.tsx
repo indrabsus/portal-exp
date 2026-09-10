@@ -30,6 +30,15 @@ function labelMengajar(m: Mengajar | undefined) {
   return `${m.mapel?.nama_pelajaran || "-"} - ${m.tingkat} ${m.nama_kelas}`
 }
 
+function hitungRataRata(nilai: Record<string, number | null>, kolom: Kolom[]): number | null {
+  if (kolom.length === 0) return null
+  const total = kolom.reduce((sum, k) => {
+    const val = nilai[k.id]
+    return sum + (typeof val === "number" && !isNaN(val) ? val : 0)
+  }, 0)
+  return Math.round((total / kolom.length) * 100) / 100
+}
+
 export default function RekapNilaiPage() {
   const [mengajarList, setMengajarList] = useState<Mengajar[]>([])
   const [idPengajaran, setIdPengajaran] = useState("")
@@ -175,7 +184,14 @@ export default function RekapNilaiPage() {
                               )}
                             </td>
                           ))}
-                          <td className="px-4 py-2.5 font-semibold">{s.rata_rata ?? "-"}</td>
+                          {(() => {
+                            const rataRata = hitungRataRata(s.nilai, kolom)
+                            return (
+                              <td className="px-4 py-2.5 font-semibold">
+                                {rataRata !== null ? rataRata : (s.rata_rata ?? "-")}
+                              </td>
+                            )
+                          })()}
                         </tr>
                       ))
                     )}
