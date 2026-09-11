@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Loader2, NotebookPen, PencilLine, Plus, Save, Trash2 } from "lucide-react"
 
 import { apiFetch } from "@/lib/api"
@@ -47,6 +47,30 @@ export default function NilaiManualPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [filterKelas, setFilterKelas] = useState("all")
+
+  const kelasOptions = useMemo(() => {
+    const set = new Set<string>()
+    for (const m of mengajarList) {
+      const k = `${m.tingkat} ${m.nama_kelas}`.trim()
+      if (k) set.add(k)
+    }
+    for (const d of data) {
+      if (d.pengajaran?.tingkat && d.pengajaran?.nama_kelas) {
+        const k = `${d.pengajaran.tingkat} ${d.pengajaran.nama_kelas}`.trim()
+        if (k) set.add(k)
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  }, [mengajarList, data])
+
+  const filteredData = useMemo(() => {
+    if (filterKelas === "all") return data
+    return data.filter((item) => {
+      const k = item.pengajaran ? `${item.pengajaran.tingkat} ${item.pengajaran.nama_kelas}`.trim() : ""
+      return k === filterKelas
+    })
+  }, [data, filterKelas])
 
   const [formOpen, setFormOpen] = useState(false)
   const [idPengajaran, setIdPengajaran] = useState("")
@@ -209,11 +233,30 @@ export default function NilaiManualPage() {
       </div>
 
       <Card className="dashboard-card overflow-hidden py-0">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-border py-4">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-border py-4">
           <CardTitle className="flex items-center gap-2">
             <NotebookPen className="w-4 h-4 text-muted-foreground" />
             Daftar Penilaian
           </CardTitle>
+          <div className="flex items-center gap-2">
+            <label htmlFor="filter-kelas" className="text-xs font-medium text-muted-foreground shrink-0">
+              Kelas:
+            </label>
+            <select
+              id="filter-kelas"
+              className={selectClass + " w-auto min-w-36"}
+              value={filterKelas}
+              onChange={(e) => setFilterKelas(e.target.value)}
+              disabled={loading || mengajarList.length === 0}
+            >
+              <option value="all">Semua Kelas</option>
+              {kelasOptions.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </div>
         </CardHeader>
 
         {error && <p className="px-4 pt-3 text-sm text-destructive">{error}</p>}
@@ -241,14 +284,16 @@ export default function NilaiManualPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {data.length === 0 ? (
+                {filteredData.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                      Belum ada penilaian manual. Klik &quot;Nilai Manual Baru&quot; untuk menambahkan.
+                      {data.length === 0
+                        ? 'Belum ada penilaian manual. Klik "Nilai Manual Baru" untuk menambahkan.'
+                        : `Tidak ada penilaian manual untuk kelas "${filterKelas}".`}
                     </td>
                   </tr>
                 ) : (
-                  data.map((item) => {
+                  filteredData.map((item) => {
                     const isBusy = processingId === item.id_nilai_manual
                     return (
                       <tr key={item.id_nilai_manual} className="hover:bg-muted/40">
