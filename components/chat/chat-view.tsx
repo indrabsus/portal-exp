@@ -513,13 +513,13 @@ export function ChatView({
   }
 
   return (
-    <div className="flex h-[calc(100vh-140px)] min-h-[500px] w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-foreground shadow-2xl">
+    <div className="dark flex h-[calc(100vh-140px)] min-h-[500px] w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-slate-100 shadow-2xl">
       {/* ------------------------------------------------------------- */}
       {/* KOLOM KIRI: DAFTAR CHAT & KONTAK */}
       {/* ------------------------------------------------------------- */}
       <div
         className={`
-          flex w-full flex-col border-r border-slate-800 bg-slate-900/90 transition-all duration-300 md:w-80 lg:w-96
+          flex w-full flex-col border-r border-slate-800 bg-slate-900/95 text-slate-100 transition-all duration-300 md:w-80 lg:w-96
           ${activePartner ? "hidden md:flex" : "flex"}
         `}
       >
@@ -527,25 +527,25 @@ export function ChatView({
         <div className="border-b border-slate-800 p-3.5">
           <div className="flex items-center justify-between pb-3">
             <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
                 <MessageSquare className="size-4" />
               </div>
-              <h2 className="text-base font-bold tracking-tight">Pesan & Obrolan</h2>
+              <h2 className="text-base font-bold tracking-tight text-slate-100">Pesan & Obrolan</h2>
             </div>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs border-slate-700 text-slate-300">
               {onlineUserIds.size} Online
             </Badge>
           </div>
 
           {/* Search Box */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <Input
               type="text"
               placeholder={activeTab === "chat" ? "Cari percakapan..." : "Cari kontak nama..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 pl-9 pr-3 text-xs bg-slate-950/60 border-slate-800 focus-visible:ring-primary/40"
+              className="h-9 pl-9 pr-3 text-xs bg-slate-950/80 border-slate-800 text-slate-100 placeholder:text-slate-400 focus-visible:ring-primary/40"
             />
           </div>
 
@@ -553,20 +553,20 @@ export function ChatView({
           <div className="mt-3 flex rounded-lg bg-slate-950 p-1 border border-slate-800/80">
             <button
               onClick={() => setActiveTab("chat")}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
+              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === "chat"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-100"
               }`}
             >
               Percakapan
             </button>
             <button
               onClick={() => setActiveTab("kontak")}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all ${
+              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === "kontak"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-100"
               }`}
             >
               Daftar Kontak
@@ -580,10 +580,10 @@ export function ChatView({
                 <button
                   key={r}
                   onClick={() => setRoleFilter(r)}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition-colors ${
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition-colors cursor-pointer border ${
                     roleFilter === r
-                      ? "bg-primary/20 text-primary border border-primary/40"
-                      : "bg-slate-800 text-muted-foreground hover:bg-slate-700/60 hover:text-foreground"
+                      ? "bg-primary/20 text-sky-300 border-primary/50 font-semibold"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700/60 hover:text-white border-slate-700/60"
                   }`}
                 >
                   {r === "all" ? "Semua" : r === "guru" ? "Guru & Staf" : "Siswa"}
@@ -598,24 +598,24 @@ export function ChatView({
           {activeTab === "chat" ? (
             /* TAB PERCAKAPAN */
             loadingConversations ? (
-              <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+              <div className="flex flex-col items-center justify-center p-8 text-slate-400">
                 <Loader2 className="size-6 animate-spin text-primary" />
                 <p className="mt-2 text-xs">Memuat percakapan...</p>
               </div>
             ) : conversations.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+              <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
                 <div className="flex size-12 items-center justify-center rounded-full bg-slate-800/50 text-slate-400">
                   <MessageSquare className="size-6" />
                 </div>
-                <p className="mt-3 text-sm font-semibold">Belum Ada Percakapan</p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-3 text-sm font-semibold text-slate-200">Belum Ada Percakapan</p>
+                <p className="mt-1 text-xs text-slate-400">
                   Buka tab <strong>Daftar Kontak</strong> untuk memulai percakapan baru.
                 </p>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setActiveTab("kontak")}
-                  className="mt-4 text-xs"
+                  className="mt-4 text-xs border-slate-700 text-slate-200 hover:bg-slate-800"
                 >
                   <Users className="mr-1.5 size-3.5" />
                   Buka Kontak
@@ -641,7 +641,7 @@ export function ChatView({
                         w-full flex items-center gap-3 p-3.5 text-left transition-colors cursor-pointer
                         ${
                           isSelected
-                            ? "bg-primary/15 border-l-4 border-primary"
+                            ? "bg-primary/20 border-l-4 border-primary"
                             : "hover:bg-white/5"
                         }
                       `}
@@ -655,20 +655,20 @@ export function ChatView({
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="truncate text-sm font-semibold">{item.partner.nama}</p>
-                          <span className="shrink-0 text-[10px] text-muted-foreground">
+                          <p className="truncate text-sm font-semibold text-slate-100">{item.partner.nama}</p>
+                          <span className="shrink-0 text-[10px] text-slate-400">
                             {formatChatTime(item.lastMessage.created_at)}
                           </span>
                         </div>
 
                         <div className="mt-1 flex items-center justify-between gap-2">
-                          <p className="truncate text-xs text-muted-foreground flex items-center gap-1">
+                          <p className="truncate text-xs text-slate-400 flex items-center gap-1">
                             {item.lastMessage.sender_id === myId && (
                               <span className="text-primary shrink-0">
                                 {item.lastMessage.is_read ? (
-                                  <CheckCheck className="size-3.5 inline" />
+                                  <CheckCheck className="size-3.5 inline text-sky-400" />
                                 ) : (
-                                  <Check className="size-3.5 inline" />
+                                  <Check className="size-3.5 inline text-slate-400" />
                                 )}
                               </span>
                             )}
@@ -680,7 +680,7 @@ export function ChatView({
                           </p>
 
                           {item.unreadCount > 0 && (
-                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">
                               {item.unreadCount > 99 ? "99+" : item.unreadCount}
                             </span>
                           )}
@@ -693,12 +693,12 @@ export function ChatView({
           ) : (
             /* TAB DAFTAR KONTAK */
             loadingContacts ? (
-              <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+              <div className="flex flex-col items-center justify-center p-8 text-slate-400">
                 <Loader2 className="size-6 animate-spin text-primary" />
                 <p className="mt-2 text-xs">Mencari kontak...</p>
               </div>
             ) : contacts.length === 0 ? (
-              <div className="p-8 text-center text-xs text-muted-foreground">
+              <div className="p-8 text-center text-xs text-slate-400">
                 Tidak ada kontak yang cocok dengan pencarian.
               </div>
             ) : (
@@ -714,7 +714,7 @@ export function ChatView({
                       w-full flex items-center gap-3 p-3.5 text-left transition-colors cursor-pointer
                       ${
                         isSelected
-                          ? "bg-primary/15 border-l-4 border-primary"
+                          ? "bg-primary/20 border-l-4 border-primary"
                           : "hover:bg-white/5"
                       }
                     `}
@@ -727,19 +727,19 @@ export function ChatView({
                     />
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{contact.nama}</p>
+                      <p className="truncate text-sm font-semibold text-slate-100">{contact.nama}</p>
                       <div className="mt-0.5 flex items-center gap-1.5">
                         <Badge
                           variant="outline"
-                          className="px-1.5 py-0 text-[10px] uppercase font-bold tracking-wider"
+                          className="px-1.5 py-0 text-[10px] uppercase font-bold tracking-wider border-slate-700 bg-slate-800/80 text-slate-200"
                         >
                           {contact.role}
                         </Badge>
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-[11px]">
                           {isOnline ? (
-                            <span className="text-emerald-400">Aktif</span>
+                            <span className="text-emerald-400 font-medium">Online</span>
                           ) : (
-                            "Offline"
+                            <span className="text-slate-400">Offline</span>
                           )}
                         </span>
                       </div>
@@ -784,14 +784,14 @@ export function ChatView({
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold truncate max-w-[200px] md:max-w-xs">
+                    <h3 className="text-sm font-bold truncate max-w-[200px] md:max-w-xs text-slate-100">
                       {activePartner.nama}
                     </h3>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-bold uppercase">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-bold uppercase border-slate-700 bg-slate-800/80 text-slate-200">
                       {activePartner.role}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <p className="text-xs text-slate-400 flex items-center gap-1">
                     {partnerTyping ? (
                       <span className="text-primary font-medium italic animate-pulse">
                         sedang mengetik...
@@ -809,19 +809,19 @@ export function ChatView({
             {/* Area Pesan Chat (Scrollable) */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
               {loadingMessages ? (
-                <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+                <div className="flex h-full flex-col items-center justify-center text-slate-400">
                   <Loader2 className="size-7 animate-spin text-primary" />
                   <p className="mt-2 text-xs">Memuat riwayat chat...</p>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground p-6">
+                <div className="flex h-full flex-col items-center justify-center text-center text-slate-400 p-6">
                   <div className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Sparkles className="size-7" />
                   </div>
-                  <h4 className="mt-3 text-sm font-bold text-foreground">
+                  <h4 className="mt-3 text-sm font-bold text-slate-100">
                     Mulai Obrolan dengan {activePartner.nama}
                   </h4>
-                  <p className="mt-1 text-xs max-w-xs">
+                  <p className="mt-1 text-xs max-w-xs text-slate-400">
                     Kirim pesan salam, pertanyaan materi, atau diskusi tugas di sini.
                   </p>
                 </div>
@@ -841,7 +841,7 @@ export function ChatView({
                           ${
                             isMe
                               ? "bg-primary text-primary-foreground rounded-tr-none"
-                              : "bg-slate-900 border border-slate-800 text-foreground rounded-tl-none"
+                              : "bg-slate-900 border border-slate-800 text-slate-100 rounded-tl-none"
                           }
                         `}
                       >
@@ -883,7 +883,7 @@ export function ChatView({
                         <div
                           className={`
                             mt-1 flex items-center justify-end gap-1 text-[10px]
-                            ${isMe ? "text-primary-foreground/75" : "text-muted-foreground"}
+                            ${isMe ? "text-primary-foreground/75" : "text-slate-400"}
                           `}
                         >
                           <span>{formatChatTime(msg.created_at)}</span>
@@ -922,8 +922,8 @@ export function ChatView({
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold">{selectedFile.name}</p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="truncate text-xs font-semibold text-slate-100">{selectedFile.name}</p>
+                    <p className="text-[10px] text-slate-400">
                       {(selectedFile.size / 1024).toFixed(1)} KB
                     </p>
                   </div>
@@ -954,7 +954,7 @@ export function ChatView({
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
                 title="Kirim Foto / Berkas"
-                className="shrink-0 text-muted-foreground hover:text-foreground"
+                className="shrink-0 text-slate-400 hover:text-slate-100"
               >
                 <Paperclip className="size-4" />
               </Button>
@@ -964,7 +964,7 @@ export function ChatView({
                 placeholder={`Ketik pesan ke ${activePartner.nama}...`}
                 value={pesanInput}
                 onChange={handleInputChange}
-                className="flex-1 bg-slate-950 border-slate-800 text-sm focus-visible:ring-primary/50"
+                className="flex-1 bg-slate-950 border-slate-800 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:ring-primary/50"
               />
 
               <Button
@@ -985,14 +985,14 @@ export function ChatView({
           </>
         ) : (
           /* TAMPILAN KOSONG JIKA BELUM PILIH CHAT */
-          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-slate-400">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-slate-900 border border-slate-800 text-primary shadow-inner">
               <MessageSquare className="size-8" />
             </div>
-            <h3 className="mt-4 text-base font-bold text-foreground">
+            <h3 className="mt-4 text-base font-bold text-slate-100">
               Pusat Pesan & Chat Realtime
             </h3>
-            <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+            <p className="mt-1 max-w-sm text-xs text-slate-400">
               Pilih salah satu kontak Guru, Siswa, atau staf di menu sebelah kiri untuk memulai
               obrolan langsung secara realtime.
             </p>
