@@ -1,6 +1,6 @@
 "use client"
 
-import { Award, LayoutDashboard, MessageSquareText, Sparkles, Wallet } from "lucide-react"
+import { Award, LayoutDashboard, MessageSquare, MessageSquareText, Sparkles, Wallet } from "lucide-react"
 
 import { RequireRole } from "@/components/require-role"
 import { PortalShell, PortalMenuItem } from "@/components/portal-shell"
@@ -11,6 +11,7 @@ const menus: PortalMenuItem[] = [
   { title: "Project & Inovasi Siswa", href: "/kajur/inovasi-siswa", icon: Sparkles },
   { title: "Catatan Siswa", href: "/kajur/catatan-siswa", icon: MessageSquareText },
   { title: "Keuangan Siswa", href: "/kajur/keuangan-siswa", icon: Wallet },
+  { title: "Chat", href: "/kajur/chat", icon: MessageSquare },
 ]
 
 export default function KajurLayout({

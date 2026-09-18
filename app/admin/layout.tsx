@@ -6,6 +6,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   BookOpen,
+  MessageSquare,
   School,
   Users,
 } from "lucide-react"
@@ -26,6 +27,7 @@ const menus: PortalMenuItem[] = [
     href: "/admin/informasi-sekolah",
     icon: Building,
   },
+  { title: "Chat", href: "/admin/chat", icon: MessageSquare },
 ]
 
 export default function AdminLayout({

@@ -8,6 +8,7 @@ import {
   FileText,
   GraduationCap,
   LayoutDashboard,
+  MessageSquare,
   NotebookPen,
   Sparkles,
 } from "lucide-react"
@@ -25,6 +26,7 @@ const menus: PortalMenuItem[] = [
   { title: "Status SPP", href: "/siswa/spp", icon: CreditCard },
   { title: "Status PPDB", href: "/siswa/ppdb", icon: GraduationCap },
   { title: "Project & Inovasi Saya", href: "/siswa/proyek", icon: Sparkles },
+  { title: "Chat", href: "/siswa/chat", icon: MessageSquare },
 ]
 
 export default function SiswaLayout({

@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ListChecks,
   NotebookPen,
+  MessageSquare,
   School,
 } from "lucide-react"
 
@@ -27,6 +28,7 @@ const menus: PortalMenuItem[] = [
   { title: "Materi", href: "/guru/materi", icon: BookOpen },
   { title: "Bank Soal", href: "/guru/bank-soal", icon: BookMarked },
   { title: "Tugas", href: "/guru/tugas", icon: FileText },
+  { title: "Chat", href: "/guru/chat", icon: MessageSquare },
 ]
 
 export default function GuruLayout({

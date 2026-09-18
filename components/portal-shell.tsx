@@ -16,6 +16,8 @@ import {
 
 import { apiFetch, getAssetUrl } from "@/lib/api"
 import { logout, updateUserGambar, UserLogin } from "@/lib/auth"
+import { getSocket } from "@/lib/socket"
+import { FloatingChatButton } from "@/components/chat/floating-chat-button"
 import { Modal } from "@/components/modal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -75,6 +77,40 @@ export function PortalShell({
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [gambar, setGambar] = useState<string | null>(user.gambar ?? null)
+  const [unreadChat, setUnreadChat] = useState(0)
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const res = await apiFetch("/chat/unread-count")
+        if (res?.status === "success") {
+          setUnreadChat(res.data?.unread || 0)
+        }
+      } catch (e) {
+        // Abaikan jika belum login/koneksi
+      }
+    }
+
+    fetchUnread()
+
+    const socket = getSocket()
+    if (!socket) return
+
+    const onNewMsg = (msg: { receiver_id: string }) => {
+      if (String(msg.receiver_id) === String(user.userId)) {
+        setUnreadChat((prev) => prev + 1)
+      }
+    }
+    const onCleared = () => fetchUnread()
+
+    socket.on("new_message", onNewMsg)
+    socket.on("unread_cleared", onCleared)
+
+    return () => {
+      socket.off("new_message", onNewMsg)
+      socket.off("unread_cleared", onCleared)
+    }
+  }, [user.userId])
 
   const handleLogout = () => {
     logout()
@@ -153,6 +189,8 @@ export function PortalShell({
             const active =
               pathname === menu.href || pathname.startsWith(menu.href + "/")
 
+            const isChatMenu = menu.href.endsWith("/chat")
+
             return (
               <button
                 key={menu.href}
@@ -170,7 +208,12 @@ export function PortalShell({
                 `}
               >
                 <Icon className="w-5 h-5 shrink-0" />
-                <span>{menu.title}</span>
+                <span className="flex-1 text-left">{menu.title}</span>
+                {isChatMenu && unreadChat > 0 && (
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-destructive text-[11px] font-extrabold text-destructive-foreground">
+                    {unreadChat > 99 ? "99+" : unreadChat}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -206,6 +249,8 @@ export function PortalShell({
 
         <div className="p-4 md:p-6 print:p-0">{children}</div>
       </section>
+
+      <FloatingChatButton user={user} />
     </main>
   )
 }
