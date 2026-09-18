@@ -4,13 +4,13 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
-import { getRole, getRoleHome, getUser, UserLogin } from "@/lib/auth"
+import { getRole, getRoleHome, getUser, Role, UserLogin } from "@/lib/auth"
 
 export function RequireRole({
   role,
   children,
 }: {
-  role: "admin" | "kajur" | "guru" | "siswa"
+  role: Role
   children: (user: UserLogin) => React.ReactNode
 }) {
   const router = useRouter()

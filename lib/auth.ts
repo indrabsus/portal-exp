@@ -10,13 +10,14 @@ export type UserLogin = {
   id_data?: string
 }
 
-export type Role = "admin" | "kajur" | "guru" | "siswa"
+export type Role = "admin" | "kajur" | "guru" | "siswa" | "kurikulum"
 
 export const ROLE_HOME: Record<Role, string> = {
   admin: "/admin/dashboard",
   kajur: "/kajur/dashboard",
   guru: "/guru/dashboard",
   siswa: "/siswa/dashboard",
+  kurikulum: "/kurikulum/dashboard",
 }
 
 export const saveAuth = (token: string, user: UserLogin) => {
@@ -59,15 +60,18 @@ export const updateUserGambar = (gambar: string): UserLogin | null => {
 }
 
 export const getRole = (user: UserLogin | null): string => {
-  return String(user?.role || user?.nama_role || "")
+  const r = String(user?.role || user?.nama_role || "")
     .toLowerCase()
     .trim()
+  if (r === "adminkurikulum") return "kurikulum"
+  return r
 }
 
 export const isAdmin = (user: UserLogin | null) => getRole(user) === "admin"
 export const isKajur = (user: UserLogin | null) => getRole(user) === "kajur"
 export const isGuru = (user: UserLogin | null) => getRole(user) === "guru"
 export const isSiswa = (user: UserLogin | null) => getRole(user) === "siswa"
+export const isKurikulum = (user: UserLogin | null) => getRole(user) === "kurikulum"
 
 export const getRoleHome = (user: UserLogin | null) => {
   const role = getRole(user) as Role
