@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import {
   Search,
   Send,
@@ -156,7 +156,7 @@ export function ChatView({
 
   const [activeTab, setActiveTab] = useState<"chat" | "kontak">("chat")
   const [searchQuery, setSearchQuery] = useState("")
-  const [roleFilter, setRoleFilter] = useState<"all" | "guru" | "siswa">("all")
+  const [roleFilter, setRoleFilter] = useState<"all" | "online" | "guru" | "siswa">("all")
 
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [contacts, setContacts] = useState<ChatPartner[]>([])
@@ -171,6 +171,27 @@ export function ChatView({
 
   const [partnerTyping, setPartnerTyping] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
+
+  // Hitung jumlah kontak yang sedang online
+  const onlineContactsCount = useMemo(() => {
+    return contacts.filter((c) => onlineUserIds.has(String(c.userId))).length
+  }, [contacts, onlineUserIds])
+
+  // Kontak teratas yang sedang online, kemudian diurutkan secara alfabetis nama
+  const displayContacts = useMemo(() => {
+    let list = contacts
+    if (roleFilter === "online") {
+      list = list.filter((c) => onlineUserIds.has(String(c.userId)))
+    }
+    return [...list].sort((a, b) => {
+      const aOnline = onlineUserIds.has(String(a.userId)) ? 1 : 0
+      const bOnline = onlineUserIds.has(String(b.userId)) ? 1 : 0
+      if (bOnline !== aOnline) {
+        return bOnline - aOnline // Kontak online selalu di urutan teratas
+      }
+      return (a.nama || "").localeCompare(b.nama || "", undefined, { sensitivity: "base" })
+    })
+  }, [contacts, onlineUserIds, roleFilter])
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
@@ -207,7 +228,7 @@ export function ChatView({
         setLoadingContacts(true)
         const params = new URLSearchParams()
         if (q) params.set("q", q)
-        if (role && role !== "all") params.set("role", role)
+        if (role && role !== "all" && role !== "online") params.set("role", role)
 
         const res = await apiFetch(`/chat/contacts?${params.toString()}`)
         if (res?.status === "success") {
@@ -563,32 +584,49 @@ export function ChatView({
             </button>
             <button
               onClick={() => setActiveTab("kontak")}
-              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex-1 rounded-md py-1.5 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 activeTab === "kontak"
                   ? "bg-primary text-white shadow-sm"
                   : "text-slate-400 hover:text-slate-100"
               }`}
             >
-              Daftar Kontak
+              <span>Daftar Kontak</span>
+              {onlineContactsCount > 0 && (
+                <span className="flex size-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30 animate-pulse" />
+              )}
             </button>
           </div>
 
           {/* Filter Role (Khusus Tab Kontak) */}
           {activeTab === "kontak" && (
             <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs">
-              {(["all", "guru", "siswa"] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRoleFilter(r)}
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition-colors cursor-pointer border ${
-                    roleFilter === r
-                      ? "bg-primary/20 text-sky-300 border-primary/50 font-semibold"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700/60 hover:text-white border-slate-700/60"
-                  }`}
-                >
-                  {r === "all" ? "Semua" : r === "guru" ? "Guru & Staf" : "Siswa"}
-                </button>
-              ))}
+              {(["all", "online", "guru", "siswa"] as const).map((r) => {
+                const label =
+                  r === "all"
+                    ? "Semua"
+                    : r === "online"
+                    ? `Online ${onlineContactsCount > 0 ? `(${onlineContactsCount})` : ""}`
+                    : r === "guru"
+                    ? "Guru & Staf"
+                    : "Siswa"
+
+                return (
+                  <button
+                    key={r}
+                    onClick={() => setRoleFilter(r)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium capitalize transition-colors cursor-pointer border shrink-0 flex items-center gap-1 ${
+                      roleFilter === r
+                        ? "bg-primary/20 text-sky-300 border-primary/50 font-semibold"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700/60 hover:text-white border-slate-700/60"
+                    }`}
+                  >
+                    {r === "online" && (
+                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    )}
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -697,14 +735,16 @@ export function ChatView({
                 <Loader2 className="size-6 animate-spin text-primary" />
                 <p className="mt-2 text-xs">Mencari kontak...</p>
               </div>
-            ) : contacts.length === 0 ? (
+            ) : displayContacts.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400">
-                Tidak ada kontak yang cocok dengan pencarian.
+                {roleFilter === "online"
+                  ? "Tidak ada kontak yang sedang online saat ini."
+                  : "Tidak ada kontak yang cocok dengan pencarian."}
               </div>
             ) : (
-              contacts.map((contact) => {
+              displayContacts.map((contact) => {
                 const isSelected = activePartner?.userId === contact.userId
-                const isOnline = onlineUserIds.has(contact.userId)
+                const isOnline = onlineUserIds.has(String(contact.userId))
 
                 return (
                   <button
@@ -715,6 +755,8 @@ export function ChatView({
                       ${
                         isSelected
                           ? "bg-primary/20 border-l-4 border-primary"
+                          : isOnline
+                          ? "bg-slate-900/30 hover:bg-white/5"
                           : "hover:bg-white/5"
                       }
                     `}
@@ -727,7 +769,15 @@ export function ChatView({
                     />
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-100">{contact.nama}</p>
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="truncate text-sm font-semibold text-slate-100">{contact.nama}</p>
+                        {isOnline && (
+                          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-800/50 rounded-full px-1.5 py-0.5">
+                            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Online
+                          </span>
+                        )}
+                      </div>
                       <div className="mt-0.5 flex items-center gap-1.5">
                         <Badge
                           variant="outline"
@@ -735,13 +785,9 @@ export function ChatView({
                         >
                           {contact.role}
                         </Badge>
-                        <span className="text-[11px]">
-                          {isOnline ? (
-                            <span className="text-emerald-400 font-medium">Online</span>
-                          ) : (
-                            <span className="text-slate-400">Offline</span>
-                          )}
-                        </span>
+                        {!isOnline && (
+                          <span className="text-[11px] text-slate-400">Offline</span>
+                        )}
                       </div>
                     </div>
                   </button>
