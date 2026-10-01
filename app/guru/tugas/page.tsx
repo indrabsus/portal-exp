@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import {
   CheckCircle2,
+  ExternalLink,
   FileText,
   ListChecks,
   Loader2,
@@ -816,10 +817,34 @@ function JawabanSiswaView({
     )
   }
 
+  const jawabanTeks = jawabanList[0]?.jawaban_text || ""
+  const linkList = ekstraksiLink(jawabanTeks)
+
   return (
-    <div className="space-y-2">
-      <p className="rounded-md border border-border bg-muted/30 p-2 text-xs">{jawabanList[0]?.jawaban_text || "-"}</p>
-      <div className="flex items-center gap-2">
+    <div className="space-y-2 select-text">
+      {linkList.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 p-2 text-xs">
+          <span className="font-semibold text-primary">Tautan Tugas:</span>
+          {linkList.map((l, i) => (
+            <a
+              key={i}
+              href={l.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 hover:underline transition-colors break-all"
+            >
+              <ExternalLink className="size-3 shrink-0" />
+              <span className="max-w-[280px] truncate">{l.display}</span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs whitespace-pre-wrap break-words leading-relaxed select-text">
+        <TeksDenganLink teks={jawabanTeks} />
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
         <label className="text-xs font-medium text-muted-foreground">Nilai (0-100)</label>
         <Input
           type="number"
@@ -831,5 +856,65 @@ function JawabanSiswaView({
         />
       </div>
     </div>
+  )
+}
+
+function ekstraksiLink(teks: string | null | undefined): Array<{ href: string; display: string }> {
+  if (!teks) return []
+  const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi
+  const matches = teks.match(urlRegex) || []
+  return matches.map((raw) => {
+    let url = raw
+    const matchTrailing = url.match(/[.,;:!?)\]]+$/)
+    if (matchTrailing) {
+      url = url.slice(0, -matchTrailing[0].length)
+    }
+    const href = url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`
+    return { href, display: url }
+  })
+}
+
+function TeksDenganLink({ teks }: { teks: string | null | undefined }) {
+  if (!teks) return <span className="text-muted-foreground">-</span>
+
+  const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi
+  const parts = teks.split(urlRegex)
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (!part) return null
+
+        if (/^(https?:\/\/|www\.)/i.test(part)) {
+          let url = part
+          let trailing = ""
+          const matchTrailing = url.match(/[.,;:!?)\]]+$/)
+          if (matchTrailing) {
+            trailing = matchTrailing[0]
+            url = url.slice(0, -trailing.length)
+          }
+
+          const href = url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`
+
+          return (
+            <span key={index} className="inline">
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-0.5 font-medium text-primary underline underline-offset-2 hover:text-primary/80 break-all"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span>{url}</span>
+                <ExternalLink className="inline size-3 shrink-0" />
+              </a>
+              {trailing}
+            </span>
+          )
+        }
+
+        return <span key={index}>{part}</span>
+      })}
+    </>
   )
 }
