@@ -12,7 +12,10 @@ import { CertificateView } from "@/components/certificate-view"
 type SertifikatDetail = {
   nomor_sertifikat: string
   judul_manual: string
+  tipe_sertifikat?: "kompetensi" | "mengikuti" | string | null
+  keterangan_custom?: string | null
   nilai: number | null
+  daftar_nilai?: { kompetensi: string; nilai: number }[] | null
   created_at: string
   nama_kajur: string | null
   jabatan_kajur: string
@@ -98,7 +101,10 @@ export default function CetakSertifikatPage() {
         data={{
           namaSiswa: data.nama_siswa,
           judulKompetensi: data.judul_manual,
+          tipeSertifikat: data.tipe_sertifikat,
+          keteranganCustom: data.keterangan_custom,
           nilai: data.nilai,
+          daftarNilai: data.daftar_nilai,
           nomorSertifikat: data.nomor_sertifikat,
           tanggalTerbit: data.created_at,
           namaKajur: data.nama_kajur,

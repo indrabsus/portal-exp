@@ -5,6 +5,8 @@ import Link from "next/link"
 import {
   Award,
   Ban,
+  CheckCircle2,
+  FileCheck2,
   Loader2,
   Plus,
   Printer,
@@ -30,15 +32,28 @@ type SiswaOption = {
   kelas: string
 }
 
+type NilaiItem = {
+  kompetensi: string
+  nilai: number
+}
+
 type SertifikatRow = {
   id_sertifikat: string
   nomor_sertifikat: string
   judul_manual: string
+  tipe_sertifikat?: "kompetensi" | "mengikuti" | string | null
+  keterangan_custom?: string | null
   nilai: number | null
+  daftar_nilai?: NilaiItem[] | null
   status: "aktif" | "dicabut"
   created_at: string
   nama_kepsek: string | null
   siswa?: { nama_lengkap: string }
+}
+
+type InputDaftarNilai = {
+  kompetensi: string
+  nilai: string
 }
 
 const SEMUA_KELAS = "__semua__"
@@ -56,7 +71,14 @@ export default function SertifikatManualPage() {
   const [selectedSiswa, setSelectedSiswa] = useState<Set<string>>(new Set())
   const [filterKelas, setFilterKelas] = useState(SEMUA_KELAS)
   const [filterNama, setFilterNama] = useState("")
+
+  // Form states
+  const [tipeSertifikat, setTipeSertifikat] = useState<"kompetensi" | "mengikuti">("kompetensi")
   const [judulManual, setJudulManual] = useState("")
+  const [keteranganCustom, setKeteranganCustom] = useState("")
+  const [daftarNilai, setDaftarNilai] = useState<InputDaftarNilai[]>([
+    { kompetensi: "", nilai: "" },
+  ])
   const [nilai, setNilai] = useState("")
   const [sertakanKepsek, setSertakanKepsek] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -147,7 +169,10 @@ export default function SertifikatManualPage() {
     setSelectedSiswa(new Set())
     setFilterKelas(SEMUA_KELAS)
     setFilterNama("")
+    setTipeSertifikat("kompetensi")
     setJudulManual("")
+    setKeteranganCustom("")
+    setDaftarNilai([{ kompetensi: "", nilai: "" }])
     setNilai("")
     setSertakanKepsek(false)
     setFormError(null)
@@ -175,18 +200,71 @@ export default function SertifikatManualPage() {
     })
   }
 
+  // Pengelolaan baris nilai kompetensi
+  const tambahBarisKompetensi = () => {
+    setDaftarNilai((prev) => [...prev, { kompetensi: "", nilai: "" }])
+  }
+
+  const hapusBarisKompetensi = (index: number) => {
+    setDaftarNilai((prev) => {
+      const copy = [...prev]
+      copy.splice(index, 1)
+      return copy.length > 0 ? copy : [{ kompetensi: "", nilai: "" }]
+    })
+  }
+
+  const updateBarisKompetensi = (index: number, field: "kompetensi" | "nilai", val: string) => {
+    setDaftarNilai((prev) => {
+      const copy = [...prev]
+      copy[index] = { ...copy[index], [field]: val }
+      return copy
+    })
+  }
+
+  // Hitung rata-rata otomatis dari baris kompetensi yang valid
+  const validKompetensi = daftarNilai.filter(
+    (d) => d.kompetensi.trim() && d.nilai.trim() && !isNaN(Number(d.nilai))
+  )
+  const rataRataOtomatis =
+    validKompetensi.length > 0
+      ? (
+          validKompetensi.reduce((sum, item) => sum + Number(item.nilai), 0) /
+          validKompetensi.length
+        ).toFixed(1)
+      : null
+
   const submit = async () => {
     setFormError(null)
 
     if (selectedSiswa.size === 0 || !judulManual.trim()) {
-      setFormError("Pilih minimal satu siswa dan isi judul kompetensi.")
+      setFormError("Pilih minimal satu siswa dan isi judul kegiatan/kompetensi.")
       return
+    }
+
+    // Validasi daftar nilai
+    const cleanedDaftar: NilaiItem[] = []
+    for (let i = 0; i < daftarNilai.length; i++) {
+      const item = daftarNilai[i]
+      const k = item.kompetensi.trim()
+      const n = item.nilai.trim()
+
+      if (k && n) {
+        const val = Number(n)
+        if (!Number.isFinite(val) || val < 0 || val > 100) {
+          setFormError(`Nilai untuk "${k}" harus berupa angka 0 - 100.`)
+          return
+        }
+        cleanedDaftar.push({ kompetensi: k, nilai: Math.round(val) })
+      } else if (k && !n) {
+        setFormError(`Nilai untuk "${k}" belum diisi.`)
+        return
+      }
     }
 
     if (nilai.trim() !== "") {
       const n = Number(nilai)
       if (!Number.isFinite(n) || n < 0 || n > 100) {
-        setFormError("Nilai harus berupa angka 0-100, atau kosongkan jika tidak perlu.")
+        setFormError("Nilai akhir harus berupa angka 0-100, atau kosongkan jika tidak perlu.")
         return
       }
     }
@@ -199,7 +277,10 @@ export default function SertifikatManualPage() {
         body: JSON.stringify({
           id_siswa_list: Array.from(selectedSiswa),
           judul_manual: judulManual.trim(),
-          nilai: nilai.trim(),
+          tipe_sertifikat: tipeSertifikat,
+          keterangan_custom: keteranganCustom.trim() || undefined,
+          daftar_nilai: cleanedDaftar.length > 0 ? cleanedDaftar : undefined,
+          nilai: nilai.trim() !== "" ? nilai.trim() : undefined,
           sertakan_kepsek: sertakanKepsek,
         }),
       })
@@ -264,7 +345,7 @@ export default function SertifikatManualPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sertifikat Manual</h1>
           <p className="text-sm text-muted-foreground">
-            Terbitkan sertifikat dengan judul dan nilai yang diisi manual untuk siswa jurusan Anda.
+            Terbitkan sertifikat kompetensi atau kepesertaan pelatihan dengan rincian nilai kompetensi untuk siswa jurusan Anda.
           </p>
         </div>
         <Button onClick={bukaTambah}>
@@ -309,7 +390,7 @@ export default function SertifikatManualPage() {
                   <tr>
                     <SortableTh label="No. Sertifikat" sortKey="nomor" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortableTh label="Siswa" sortKey="siswa" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                    <SortableTh label="Judul Kompetensi" sortKey="judul" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                    <SortableTh label="Jenis / Judul" sortKey="judul" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortableTh label="Nilai" sortKey="nilai" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <SortableTh label="Status" sortKey="status" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                     <th className="px-4 py-2.5 text-right text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -327,19 +408,53 @@ export default function SertifikatManualPage() {
                   ) : (
                     tableRows.map((row) => {
                       const isBusy = processingId === row.id_sertifikat
+                      const isMengikuti = row.tipe_sertifikat === "mengikuti"
+                      const hasDetail = Array.isArray(row.daftar_nilai) && row.daftar_nilai.length > 0
+
                       return (
                         <tr key={row.id_sertifikat} className="hover:bg-muted/40">
                           <td className="px-4 py-2.5 font-mono text-xs">{row.nomor_sertifikat}</td>
                           <td className="px-4 py-2.5 font-medium">{row.siswa?.nama_lengkap || "-"}</td>
                           <td className="px-4 py-2.5">
-                            {row.judul_manual}
-                            {row.nama_kepsek && (
-                              <Badge variant="outline" className="ml-1.5 align-middle text-[10px]">
-                                + TTD Kepsek
-                              </Badge>
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold">{row.judul_manual}</span>
+                                {isMengikuti ? (
+                                  <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20">
+                                    Pelatihan
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                                    Kompetensi
+                                  </Badge>
+                                )}
+                                {row.nama_kepsek && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    + TTD Kepsek
+                                  </Badge>
+                                )}
+                              </div>
+                              {hasDetail && (
+                                <p className="text-[11px] text-muted-foreground">
+                                  {row.daftar_nilai!.map((d) => `${d.kompetensi} (${d.nilai})`).join(", ")}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {row.nilai != null ? (
+                              <div className="flex flex-col">
+                                <span className="font-semibold">{row.nilai}</span>
+                                {hasDetail && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {row.daftar_nilai!.length} kompetensi
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              "-"
                             )}
                           </td>
-                          <td className="px-4 py-2.5">{row.nilai ?? "-"}</td>
                           <td className="px-4 py-2.5">
                             {row.status === "aktif" ? <Badge>Aktif</Badge> : <Badge variant="secondary">Dicabut</Badge>}
                           </td>
@@ -396,6 +511,7 @@ export default function SertifikatManualPage() {
           <div className="space-y-4">
             {formError && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>}
 
+            {/* Pilihan Siswa */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-muted-foreground">
@@ -427,7 +543,7 @@ export default function SertifikatManualPage() {
                 </select>
               </div>
 
-              <div className="h-64 overflow-y-auto rounded-lg border border-border">
+              <div className="h-44 overflow-y-auto rounded-lg border border-border">
                 {filteredSiswa.length === 0 ? (
                   <p className="p-4 text-center text-sm text-muted-foreground">Tidak ditemukan.</p>
                 ) : (
@@ -466,25 +582,174 @@ export default function SertifikatManualPage() {
               </div>
             </div>
 
+            {/* Pilihan Jenis Sertifikat */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Judul Kompetensi</label>
+              <label className="text-xs font-medium text-muted-foreground">Jenis Sertifikat</label>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setTipeSertifikat("kompetensi")}
+                  className={`flex flex-col rounded-lg border p-3 text-left transition-colors ${
+                    tipeSertifikat === "kompetensi"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 font-semibold text-sm">
+                    <FileCheck2 className="w-4 h-4" />
+                    Kelulusan Uji Kompetensi
+                  </span>
+                  <span className="text-[11px] text-muted-foreground mt-0.5">
+                    Menyatakan telah dinyatakan LULUS uji kompetensi
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipeSertifikat("mengikuti")}
+                  className={`flex flex-col rounded-lg border p-3 text-left transition-colors ${
+                    tipeSertifikat === "mengikuti"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 font-semibold text-sm">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Telah Mengikuti (Pelatihan)
+                  </span>
+                  <span className="text-[11px] text-muted-foreground mt-0.5">
+                    Menyatakan telah aktif mengikuti pelatihan / kegiatan
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Judul Kompetensi / Kegiatan */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                {tipeSertifikat === "mengikuti" ? "Nama Pelatihan / Kegiatan" : "Judul Kompetensi"}
+              </label>
               <Input
                 value={judulManual}
                 onChange={(e) => setJudulManual(e.target.value)}
-                placeholder="mis. Pelatihan Jaringan Dasar"
+                placeholder={
+                  tipeSertifikat === "mengikuti"
+                    ? "mis. Pelatihan Fullstack Web Development Modern"
+                    : "mis. Uji Kompetensi Keahlian Rekayasa Perangkat Lunak"
+                }
                 disabled={submitting}
               />
             </div>
 
+            {/* Keterangan Tambahan / Custom */}
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Nilai (opsional, 0-100)</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Keterangan Kalimat Pengantar (Opsional)
+              </label>
+              <Input
+                value={keteranganCustom}
+                onChange={(e) => setKeteranganCustom(e.target.value)}
+                placeholder={
+                  tipeSertifikat === "mengikuti"
+                    ? "Default: telah aktif mengikuti dan menyelesaikan kegiatan"
+                    : "Default: telah dinyatakan LULUS dalam uji kompetensi"
+                }
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Daftar Nilai Berdasarkan Kompetensi */}
+            <div className="space-y-2 rounded-lg border border-border p-3.5 bg-muted/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-semibold text-foreground">
+                    Pengisian Nilai per Kompetensi / Materi
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Masukkan setiap materi/kompetensi beserta nilainya (mis. PHP MVC: 90, Routing: 89)
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={tambahBarisKompetensi}
+                  disabled={submitting}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Tambah Baris
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {daftarNilai.map((item, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Input
+                        value={item.kompetensi}
+                        onChange={(e) => updateBarisKompetensi(index, "kompetensi", e.target.value)}
+                        placeholder={
+                          index === 0
+                            ? "mis. PHP MVC"
+                            : index === 1
+                            ? "mis. Routing"
+                            : `Kompetensi / Materi ${index + 1}`
+                        }
+                        disabled={submitting}
+                      />
+                    </div>
+                    <div className="w-24">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={item.nilai}
+                        onChange={(e) => updateBarisKompetensi(index, "nilai", e.target.value)}
+                        placeholder="Nilai"
+                        disabled={submitting}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => hapusBarisKompetensi(index)}
+                      disabled={submitting}
+                      className="text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              {rataRataOtomatis !== null && (
+                <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
+                  <span>
+                    Rata-rata Otomatis: <strong className="text-foreground">{rataRataOtomatis}</strong>
+                  </span>
+                  <span className="text-[11px]">
+                    (Akan otomatis menjadi Nilai Akhir jika field di bawah kosong)
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Nilai Akhir Manual (opsional) */}
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                Nilai Akhir Keseluruhan (Opsional)
+              </label>
               <Input
                 type="number"
                 min={0}
                 max={100}
                 value={nilai}
                 onChange={(e) => setNilai(e.target.value)}
-                placeholder="Kosongkan jika tidak perlu - sertifikat cukup tampilkan LULUS"
+                placeholder={
+                  rataRataOtomatis
+                    ? `Kosongkan untuk memakai nilai rata-rata (${rataRataOtomatis})`
+                    : "Kosongkan jika tidak menampilkan nilai angka sama sekali"
+                }
                 disabled={submitting}
               />
             </div>
