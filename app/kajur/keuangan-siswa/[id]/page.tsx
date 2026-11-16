@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   CircleDashed,
   Loader2,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -51,6 +52,7 @@ type SiswaRow = {
   total_dibayar: number
   sisa: number
   status: "lunas" | "sebagian" | "belum"
+  catatan?: string | null
 }
 
 type PembayaranRow = {
@@ -82,6 +84,12 @@ export default function KeuanganKategoriDetailPage() {
   const [selectedSiswa, setSelectedSiswa] = useState<SiswaRow | null>(null)
   const [filterKelas, setFilterKelas] = useState(SEMUA_KELAS)
   const [filterStatus, setFilterStatus] = useState(SEMUA_STATUS)
+
+  // Edit Catatan Quick Modal
+  const [catatanSiswa, setCatatanSiswa] = useState<SiswaRow | null>(null)
+  const [inputCatatan, setInputCatatan] = useState("")
+  const [savingCatatan, setSavingCatatan] = useState(false)
+  const [catatanError, setCatatanError] = useState<string | null>(null)
 
   const muatData = async () => {
     setLoading(true)
@@ -143,86 +151,125 @@ export default function KeuanganKategoriDetailPage() {
     totalPages,
     totalRows,
   } = useTableControls(siswaTerfilter, {
-    searchFields: (row) => [row.nama_lengkap, row.nisn, row.kelas],
+    searchFields: (row) => [row.nama_lengkap, row.nisn, row.kelas, row.catatan],
     getSortValue: (row, key) => {
       if (key === "nama") return row.nama_lengkap
       if (key === "kelas") return row.kelas
       if (key === "dibayar") return row.total_dibayar
       if (key === "sisa") return row.sisa
       if (key === "status") return row.status
+      if (key === "catatan") return row.catatan || ""
       return null
     },
     initialSortKey: "nama",
+    initialSortDir: "asc",
   })
 
+  const bukaEditCatatan = (s: SiswaRow) => {
+    setCatatanSiswa(s)
+    setInputCatatan(s.catatan || "")
+    setCatatanError(null)
+  }
+
+  const simpanCatatan = async () => {
+    if (!catatanSiswa || !kategori) return
+    setSavingCatatan(true)
+    setCatatanError(null)
+
+    try {
+      await apiFetch(`/keuangan-siswa/kategori/${kategori.id_kategori}/siswa/${catatanSiswa.id_siswa}/catatan`, {
+        method: "PUT",
+        body: JSON.stringify({ catatan: inputCatatan.trim() }),
+      })
+      setCatatanSiswa(null)
+      await muatData()
+    } catch (err) {
+      setCatatanError(err instanceof Error ? err.message : "Gagal menyimpan catatan.")
+    } finally {
+      setSavingCatatan(false)
+    }
+  }
+
+  const totalSiswa = siswaList.length
+  const totalLunas = siswaList.filter((s) => s.status === "lunas").length
   const totalTerkumpul = siswaList.reduce((sum, s) => sum + s.total_dibayar, 0)
-  const targetKeseluruhan = (kategori?.target_nominal || 0) * siswaList.length
-  const jumlahLunas = siswaList.filter((s) => s.status === "lunas").length
-  const persen = targetKeseluruhan > 0 ? Math.min(Math.round((totalTerkumpul / targetKeseluruhan) * 100), 100) : 0
-
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        Memuat data...
-      </div>
-    )
-  }
-
-  if (error || !kategori) {
-    return <p className="text-sm text-destructive">{error || "Kategori tidak ditemukan."}</p>
-  }
+  const targetTotal = (kategori ? Number(kategori.target_nominal) : 0) * totalSiswa
+  const persen = targetTotal > 0 ? Math.min(Math.round((totalTerkumpul / targetTotal) * 100), 100) : 0
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/kajur/keuangan-siswa" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Kembali ke Keuangan Siswa
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/kajur/keuangan-siswa">
+            <Button variant="ghost" size="icon-sm">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {kategori ? kategori.nama_kategori : "Detail Keuangan"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {kategori ? `${labelTingkat(kategori.target_tingkat)} · Target ${formatRupiah(kategori.target_nominal)} / siswa` : ""}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <Card className="dashboard-card overflow-hidden">
-        <CardContent className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Wallet className="size-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">{kategori.nama_kategori}</h1>
-              <p className="mt-0.5 text-xs font-medium text-primary">{labelTingkat(kategori.target_tingkat)}</p>
-              {kategori.deskripsi && <p className="mt-0.5 text-sm text-muted-foreground">{kategori.deskripsi}</p>}
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                <span>{formatRupiah(kategori.target_nominal)} / siswa</span>
-                {kategori.tenggat && (
-                  <span className="flex items-center gap-1">
-                    <CalendarClock className="size-3.5" />
-                    Tenggat {new Date(kategori.tenggat).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="w-full space-y-1.5 sm:w-64">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{jumlahLunas} / {siswaList.length} siswa lunas</span>
-              <span className="font-semibold">{persen}%</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${persen}%` }} />
-            </div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{formatRupiah(totalTerkumpul)}</span>
-              <span>dari {formatRupiah(targetKeseluruhan)}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {kategori && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card className="dashboard-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Terkumpul</CardTitle>
+              <Wallet className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatRupiah(totalTerkumpul)}</div>
+              <p className="text-xs text-muted-foreground">
+                {persen}% dari target {formatRupiah(targetTotal)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="dashboard-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Status Pelunasan</CardTitle>
+              <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {totalLunas} / {totalSiswa}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {totalSiswa - totalLunas} siswa belum lunas
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="dashboard-card">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Tenggat</CardTitle>
+              <CalendarClock className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {kategori.tenggat
+                  ? new Date(kategori.tenggat).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+                  : "-"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Status: <span className="font-semibold">{kategori.status}</span>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card className="dashboard-card overflow-hidden py-0">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-border py-4">
-          <CardTitle>Daftar Siswa</CardTitle>
+          <CardTitle>Daftar Siswa & Pembayaran</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <select className={selectClass + " w-auto"} value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1) }}>
               <option value={SEMUA_STATUS}>Semua Status</option>
@@ -241,7 +288,7 @@ export default function KeuanganKategoriDetailPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari nama atau NISN..."
+                placeholder="Cari nama, NISN, catatan..."
                 className="pl-8"
               />
             </div>
@@ -257,13 +304,14 @@ export default function KeuanganKategoriDetailPage() {
                 <SortableTh label="Dibayar" sortKey="dibayar" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortableTh label="Sisa" sortKey="sisa" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortableTh label="Status" sortKey="status" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Catatan" sortKey="catatan" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className="px-4 py-2.5 text-right text-xs font-semibold tracking-wide text-muted-foreground uppercase">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     Tidak ada siswa yang cocok.
                   </td>
                 </tr>
@@ -281,6 +329,25 @@ export default function KeuanganKategoriDetailPage() {
                           {row.status === "lunas" ? <CheckCircle2 className="w-3 h-3" /> : <CircleDashed className="w-3 h-3" />}
                           {badge.label}
                         </span>
+                      </td>
+                      <td className="px-4 py-2.5 max-w-[220px]">
+                        <div className="flex items-center justify-between gap-1 group">
+                          <span
+                            className={`truncate text-xs ${row.catatan ? "text-foreground font-medium" : "text-muted-foreground italic"}`}
+                            title={row.catatan || "Belum ada catatan"}
+                          >
+                            {row.catatan || "-"}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => bukaEditCatatan(row)}
+                            title="Ubah catatan"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex justify-end">
@@ -307,6 +374,44 @@ export default function KeuanganKategoriDetailPage() {
           onPageSizeChange={setPageSize}
         />
       </Card>
+
+      {/* Modal Quick Edit Catatan */}
+      {catatanSiswa && (
+        <Modal
+          title={`Catatan - ${catatanSiswa.nama_lengkap}`}
+          onClose={() => setCatatanSiswa(null)}
+          maxWidthClassName="max-w-md"
+        >
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Catatan Siswa</label>
+              <textarea
+                rows={3}
+                value={inputCatatan}
+                onChange={(e) => setInputCatatan(e.target.value)}
+                placeholder="mis. Janji bayar tgl 25, Dispensasi yatim, dll..."
+                className="w-full rounded-lg border border-input bg-transparent p-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                disabled={savingCatatan}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Catatan ini akan tampil pada kolom Catatan di tabel keuangan siswa kategori ini.
+              </p>
+            </div>
+
+            {catatanError && <p className="text-sm text-destructive">{catatanError}</p>}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setCatatanSiswa(null)} disabled={savingCatatan}>
+                Batal
+              </Button>
+              <Button size="sm" onClick={simpanCatatan} disabled={savingCatatan}>
+                {savingCatatan ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                Simpan Catatan
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {selectedSiswa && kategori && (
         <PembayaranModal
@@ -341,6 +446,10 @@ function PembayaranModal({
   const [keterangan, setKeterangan] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  const [catatanInput, setCatatanInput] = useState(siswa.catatan || "")
+  const [savingCatatanInline, setSavingCatatanInline] = useState(false)
+  const [catatanSaved, setCatatanSaved] = useState(false)
 
   const [processingId, setProcessingId] = useState<string | null>(null)
 
@@ -417,6 +526,23 @@ function PembayaranModal({
     }
   }
 
+  const simpanCatatanModal = async () => {
+    setSavingCatatanInline(true)
+    try {
+      await apiFetch(`/keuangan-siswa/kategori/${idKategori}/siswa/${siswa.id_siswa}/catatan`, {
+        method: "PUT",
+        body: JSON.stringify({ catatan: catatanInput.trim() }),
+      })
+      setCatatanSaved(true)
+      setTimeout(() => setCatatanSaved(false), 2000)
+      onChanged()
+    } catch {
+      // ignore
+    } finally {
+      setSavingCatatanInline(false)
+    }
+  }
+
   const hapus = async (row: PembayaranRow) => {
     if (!window.confirm("Hapus catatan pembayaran ini? Aksi ini tidak bisa dibatalkan.")) return
 
@@ -438,6 +564,36 @@ function PembayaranModal({
   return (
     <Modal title={`Pembayaran - ${siswa.nama_lengkap}`} onClose={onClose} maxWidthClassName="max-w-xl">
       <div className="space-y-4">
+        {/* Catatan Siswa Section */}
+        <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/20">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+              Catatan Khusus Siswa
+            </label>
+            {catatanSaved && <span className="text-[11px] text-emerald-600 font-medium">Tersimpan</span>}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={catatanInput}
+              onChange={(e) => setCatatanInput(e.target.value)}
+              placeholder="mis. Janji bayar tgl 25, Dispensasi, dll..."
+              className="text-xs h-8"
+              disabled={savingCatatanInline}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={simpanCatatanModal}
+              disabled={savingCatatanInline}
+            >
+              {savingCatatanInline ? <Loader2 className="w-3 h-3 animate-spin" /> : "Simpan"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Form Catat Pembayaran */}
         <div className="space-y-2 rounded-lg border border-border p-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
