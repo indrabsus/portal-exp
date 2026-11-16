@@ -20,6 +20,7 @@ import { apiFetch } from "@/lib/api"
 import { formatRupiah } from "@/lib/utils"
 import { useTableControls } from "@/lib/use-table-controls"
 import { Modal } from "@/components/modal"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -53,6 +54,7 @@ type SiswaRow = {
   sisa: number
   status: "lunas" | "sebagian" | "belum"
   catatan?: string | null
+  via?: "cash" | "tf" | "campuran" | null
 }
 
 type PembayaranRow = {
@@ -60,6 +62,7 @@ type PembayaranRow = {
   nominal: number
   tanggal_bayar: string
   keterangan: string | null
+  via?: "cash" | "tf" | string
   nama_pencatat: string | null
 }
 
@@ -74,6 +77,7 @@ const selectClass =
 
 const SEMUA_KELAS = "__semua__"
 const SEMUA_STATUS = "__semua__"
+const SEMUA_VIA = "__semua__"
 
 export default function KeuanganKategoriDetailPage() {
   const params = useParams<{ id: string }>()
@@ -84,6 +88,7 @@ export default function KeuanganKategoriDetailPage() {
   const [selectedSiswa, setSelectedSiswa] = useState<SiswaRow | null>(null)
   const [filterKelas, setFilterKelas] = useState(SEMUA_KELAS)
   const [filterStatus, setFilterStatus] = useState(SEMUA_STATUS)
+  const [filterVia, setFilterVia] = useState(SEMUA_VIA)
 
   // Edit Catatan Quick Modal
   const [catatanSiswa, setCatatanSiswa] = useState<SiswaRow | null>(null)
@@ -134,7 +139,10 @@ export default function KeuanganKategoriDetailPage() {
   const siswaTerfilter = siswaList.filter(
     (s) =>
       (filterKelas === SEMUA_KELAS || s.kelas === filterKelas) &&
-      (filterStatus === SEMUA_STATUS || s.status === filterStatus)
+      (filterStatus === SEMUA_STATUS || s.status === filterStatus) &&
+      (filterVia === SEMUA_VIA ||
+        (filterVia === "tf" && (s.via === "tf" || s.via === "campuran")) ||
+        (filterVia === "cash" && (s.via === "cash" || s.via === "campuran")))
   )
 
   const {
@@ -151,13 +159,14 @@ export default function KeuanganKategoriDetailPage() {
     totalPages,
     totalRows,
   } = useTableControls(siswaTerfilter, {
-    searchFields: (row) => [row.nama_lengkap, row.nisn, row.kelas, row.catatan],
+    searchFields: (row) => [row.nama_lengkap, row.nisn, row.kelas, row.catatan, row.via],
     getSortValue: (row, key) => {
       if (key === "nama") return row.nama_lengkap
       if (key === "kelas") return row.kelas
       if (key === "dibayar") return row.total_dibayar
       if (key === "sisa") return row.sisa
       if (key === "status") return row.status
+      if (key === "via") return row.via || ""
       if (key === "catatan") return row.catatan || ""
       return null
     },
@@ -277,6 +286,11 @@ export default function KeuanganKategoriDetailPage() {
               <option value="sebagian">Sebagian</option>
               <option value="belum">Belum Bayar</option>
             </select>
+            <select className={selectClass + " w-auto"} value={filterVia} onChange={(e) => { setFilterVia(e.target.value); setPage(1) }}>
+              <option value={SEMUA_VIA}>Semua Via</option>
+              <option value="cash">Via Cash (Tunai)</option>
+              <option value="tf">Via TF (Transfer)</option>
+            </select>
             <select className={selectClass + " w-auto"} value={filterKelas} onChange={(e) => { setFilterKelas(e.target.value); setPage(1) }}>
               <option value={SEMUA_KELAS}>Semua Kelas</option>
               {kelasOptions.map((k) => (
@@ -304,6 +318,7 @@ export default function KeuanganKategoriDetailPage() {
                 <SortableTh label="Dibayar" sortKey="dibayar" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortableTh label="Sisa" sortKey="sisa" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortableTh label="Status" sortKey="status" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <SortableTh label="Via" sortKey="via" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <SortableTh label="Catatan" sortKey="catatan" activeKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                 <th className="px-4 py-2.5 text-right text-xs font-semibold tracking-wide text-muted-foreground uppercase">Aksi</th>
               </tr>
@@ -311,7 +326,7 @@ export default function KeuanganKategoriDetailPage() {
             <tbody className="divide-y divide-border">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     Tidak ada siswa yang cocok.
                   </td>
                 </tr>
@@ -329,6 +344,23 @@ export default function KeuanganKategoriDetailPage() {
                           {row.status === "lunas" ? <CheckCircle2 className="w-3 h-3" /> : <CircleDashed className="w-3 h-3" />}
                           {badge.label}
                         </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {row.via === "tf" ? (
+                          <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[10px] font-semibold">
+                            TF
+                          </Badge>
+                        ) : row.via === "cash" ? (
+                          <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">
+                            Cash
+                          </Badge>
+                        ) : row.via === "campuran" ? (
+                          <Badge variant="secondary" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[10px] font-semibold">
+                            Cash & TF
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 max-w-[220px]">
                         <div className="flex items-center justify-between gap-1 group">
@@ -443,6 +475,7 @@ function PembayaranModal({
   const todayIso = new Date().toISOString().slice(0, 10)
   const [nominal, setNominal] = useState("")
   const [tanggalBayar, setTanggalBayar] = useState(todayIso)
+  const [via, setVia] = useState<"cash" | "tf">("cash")
   const [keterangan, setKeterangan] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -512,6 +545,7 @@ function PembayaranModal({
           id_siswa: siswa.id_siswa,
           nominal: n,
           tanggal_bayar: tanggalBayar,
+          via,
           keterangan: keterangan.trim(),
         }),
       })
@@ -594,7 +628,7 @@ function PembayaranModal({
         </div>
 
         {/* Form Catat Pembayaran */}
-        <div className="space-y-2 rounded-lg border border-border p-3">
+        <div className="space-y-3 rounded-lg border border-border p-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground">Nominal (Rp)</label>
@@ -617,12 +651,42 @@ function PembayaranModal({
               />
             </div>
           </div>
+
+          {/* Pilihan Via (Cash / TF) */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Metode Pembayaran (Via)</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setVia("cash")}
+                className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 px-3 text-xs font-semibold transition-colors ${
+                  via === "cash"
+                    ? "border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-xs"
+                    : "border-border hover:bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                Cash (Tunai)
+              </button>
+              <button
+                type="button"
+                onClick={() => setVia("tf")}
+                className={`flex items-center justify-center gap-1.5 rounded-lg border py-2 px-3 text-xs font-semibold transition-colors ${
+                  via === "tf"
+                    ? "border-blue-500 bg-blue-500/15 text-blue-600 dark:text-blue-400 shadow-xs"
+                    : "border-border hover:bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                TF (Transfer)
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground">Keterangan (opsional)</label>
             <Input
               value={keterangan}
               onChange={(e) => setKeterangan(e.target.value)}
-              placeholder="mis. Cicilan 1"
+              placeholder="mis. Cicilan 1 / Rekening / Bukti transfer"
               disabled={submitting}
             />
           </div>
@@ -653,8 +717,19 @@ function PembayaranModal({
             <div className="max-h-64 space-y-2 overflow-y-auto">
               {riwayat.map((row) => (
                 <div key={row.id_pembayaran} className="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
-                  <div className="min-w-0 space-y-0.5">
-                    <p className="text-sm font-semibold">{formatRupiah(row.nominal)}</p>
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">{formatRupiah(row.nominal)}</p>
+                      {row.via === "tf" ? (
+                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[10px] font-semibold">
+                          TF
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">
+                          Cash
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {new Date(row.tanggal_bayar).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
                       {row.keterangan ? ` · ${row.keterangan}` : ""}
